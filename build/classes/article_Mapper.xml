@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org/DTD Mapper 3.0" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wyh.dao.ArticleOperation">
+	<resultMap id="articleList" type="com.wyh.bean.ArticleBean">
+		<id column="article_id" property="article_id" />
+		<result column="article_name" property="article_name" />
+		<result column="article_writer" property="article_writer"/>
+		<result column= "article_text" property="article_text"/>
+		<result column= "article_from_flag" property="article_from_flag"/>
+		<result column= "article_from" property="article_from"/>
+		<result column= "article_date" property="article_date"/>
+		<result column= "file_path" property="file_path"/>
+		<result column= "file_size" property="file_size"/>
+		<result column= "file_count" property="file_count"/>
+		<result column="article_view_count" property="article_view_count" />
+		<result column="article_like_count" property="artile_like_count" />
+		<result column="sum(article_view.article_view_count)" property="sum_view_count" />
+		<result column="count(article.article_id)" property="sum_article_count" />
+	</resultMap>
+	<!-- column 对应数据库字段，or返回结果字段 -->
+	<resultMap id="file_path" type="java.lang.String">
+		<result column="file_path" property="file_path"/>
+	</resultMap>
+	<!--  keyProperty="article_id" useGeneratedKeys="true" 插入成功后返回id值 -->
+	<insert id="insert" parameterType="com.wyh.bean.ArticleBean" >
+		insert into article (article_id,article_name,article_writer,article_text,article_from_flag,article_from,article_date)
+		values(#{article_id},#{article_name},#{article_writer},#{article_text},#{article_from_flag},#{article_from},#{article_date});
+	</insert>
+	<!-- 点赞 -->
+	<insert id="insert_like_count">
+	    replace into article_like (article_id,username) values(#{0},#{1})
+	</insert>
+	<!-- 附件 -->
+	<insert id="insert_file" parameterType="com.wyh.bean.ArticleBean">
+		insert into article_file(article_id,file_path,file_size)
+		values(#{article_id},#{file_path},#{file_size});
+	</insert>
+	<!-- 浏览次数建表 -->
+	<insert id="insert_view_count">
+	    insert into article_view(article_id,article_view_count)
+	    values(#{0},#{1})
+	</insert>
+	<!-- 多个参数类型如何解决？？？ 去掉参数类型，sql加法器-->
+	<!-- 附件下载 -->
+	<update id="update_file_count" >
+		update article_file set file_count=file_count+1 where article_id = #{0};
+	</update>
+	<!-- 更新浏览次数 -->
+	<update id="update_view_count">
+	    update article_view set article_view_count=article_view_count+#{1} where article_id = #{0};
+	</update>
+	<!-- 用户文章总数，浏览总数 -->
+	<select id="getSumCount" resultMap="articleList">
+		select count(article.article_id),sum(article_view.article_view_count) from article 
+		left join article_view on article.article_id = article_view.article_id 
+		where article_writer=#{0}
+	</select>
+	<!-- 统计文章点赞总数 -->
+	<select id="artile_like_count" resultType="java.lang.Integer">
+	    select count(*) from article_like where article_id = #{0};
+	</select>
+	<select id="Article_Num" resultType="java.lang.Integer">
+		select count(*) from articleinfo;
+	</select>
+	<!-- 确定浏览表中是否有该值 -->
+	<select id="sure_view" resultType="java.lang.Integer">
+	    select count(*) from article_view where article_id = #{0};
+	</select>
+	<!-- 特殊符号处理 <![CDATA[<]]>   &lt;(<)  &gt;(>)  id 获得文章信息-->
+	<select id="getArticle"  parameterType="String" resultMap="articleList" >
+			<!-- select article.article_id,article.article_name,article.article_writer,article.article_text,article.article_from_flag,
+		article.article_from,article.article_date,article_file.file_path,article_file.file_size,article_file.file_count,article_view.article_view_count
+		 from article left join article_file on article.article_id=article_file.article_id 
+     left join article_view on article.article_id = article_view.article_id 
+     where article.article_id>=(select max(article.article_id) from article 
+     where article.article_id &lt; #{0} 
+     and article.article_writer=#{1} order by article.article_date)and article.article_writer=#{1} order by article.article_date limit  3; -->
+	
+		<!--用视图查询按时间排序根据第几行查三条  -->
+		select * from articleinfo where article_writer = #{0}order by article_date desc limit #{1},3;
+	</select>
+	<select id="getfile_path" parameterType="String" resultMap="file_path">
+		select file_path from article_file where article_id=#{0};
+	</select>
+	
+	<!-- 获得该作者浏览量前10的文章简单信息 -->
+	<select id="getArticleList" resultMap="articleList">
+		select article.article_id,article.article_name,article_view.article_view_count from article 
+			left join article_view on article.article_id = article_view.article_id
+				where article_writer =#{0} order by article_view.article_view_count desc limit 10
+	</select>
+	<!--  分页文章信息列表 按时间排序-->
+	<select id="getPageList"  resultMap="articleList">
+		<!-- select article.article_id,article.article_name,article.article_writer,article.article_text,article.article_from_flag,
+		article.article_from,article.article_date,article_file.file_path,article_file.file_size,article_file.file_count,article_view.article_view_count
+		 from article left join article_file on article.article_id=article_file.article_id 
+     left join article_view on article.article_id = article_view.article_id 
+where article.article_writer=#{0} and article.article_date >=
+(select article.article_date from article where article.article_writer=#{0} order by article.article_date limit #{1},1) 
+order by article.article_date limit 1 -->
+	
+	select * from articleinfo where article_writer=#{0} and article_date &lt;=
+(select article_date from article where article_writer=#{0} order by article_date desc limit #{1},1) 
+order by article_date desc limit 10 
+	</select>
+	
+	
+	<!-- 浏览量，分页 #{0}  page 参数-->
+	<select id="getArticle_view_list" resultMap="articleList">
+		select * from articleinfo order by article_view_count desc limit #{0},10;
+	</select>
+	
+	<!-- 最新时间，分页 #{0}  page 参数-->
+	<select id="getArticle_time_list" resultMap="articleList">
+		select * from articleinfo order by article_date desc limit #{0},10;
+	</select>
+	
+	<!-- 点赞量，分页 #{0}  page 参数-->
+	<select id="getArticle_like_list" resultMap="articleList">
+		select * from articleinfo order by article_like_count desc limit #{0},10;
+	</select>
+	
+	<!-- 下载量，分页 #{0}  page 参数-->
+	<select id="getArticle_download_list" resultMap="articleList">
+		select * from articleinfo order by file_count desc limit #{0},10;
+	</select>
+	<!--  获得文章下载量排序后的位置，方便查询上下相邻文章-->
+	<select id="getArticle_index_By_download" resultType="java.lang.Integer">
+		select rownum from(
+select article_id,(@mycnt := @mycnt+1) as rownum from articleinfo,(select (@mycnt:=-1)) b order by file_count desc) c
+where article_id = #{0};
+	</select>
+	<!--  获得文章排序后的位置，方便查询上下相邻文章-->
+	<select id="getArticle_index_By_like" resultType="java.lang.Integer">
+		<!-- set @m = -1;
+	select rownum from(
+		select article_id,(@m := @m+1) as rownum from articleinfo order by article_like_count desc) as a 
+		where article_id =#{0}; -->
+		
+		select rownum from(
+select article_id,(@mycnt := @mycnt+1) as rownum from articleinfo,(select (@mycnt:=-1)) b order by article_like_count desc) c
+where article_id = #{0};
+	</select>
+	
+	<!-- time 获得文章的位置-->
+	<select id="getArticle_index_By_time" resultType="java.lang.Integer">
+		select rownum from(
+select article_id,(@mycnt := @mycnt+1) as rownum from articleinfo,(select (@mycnt:=-1)) b order by article_date desc) c
+where article_id = #{0};
+	</select>
+	
+	<!-- view 获得文章的位置-->
+	<select id="getArticle_index_By_view" resultType="java.lang.Integer">
+		select rownum from(
+select article_id,(@mycnt := @mycnt+1) as rownum from articleinfo,(select (@mycnt:=-1)) b order by article_view_count desc) c
+where article_id = #{0};
+	</select>
+	<!-- 根据文章id,获得该作者所以文章中该id的行数 -->
+	<select id="getArticle_index" resultType="java.lang.Integer">
+		select rownum from(
+select article_id,(@mycnt := @mycnt+1) as rownum from articleinfo,(select (@mycnt:=-1)) b 
+where article_writer = #{1} order by article_date desc ) c
+where article_id = #{0};
+	</select>
+	<!-- 点赞量获得前10简单信息 -->
+	<select id="getBrief_Article_List_ByLike" resultMap="articleList" >
+		select article_id,article_name,article_like_count from articleinfo order by article_like_count desc limit 10;
+	</select>
+	<!-- 下载量获得前10简单信息 -->
+	<select id="getBrief_Article_list_ByDownload" resultMap="articleList" >
+		select article_id,article_name,file_count from articleinfo order by file_count desc limit 10;
+	</select>
+	<!-- Like 得到上一篇位置后截取三篇文章信息 -->
+	<select id="getArticleByLike" resultMap="articleList">
+		select * from articleinfo order by article_like_count desc limit #{0},3;
+	</select>
+	<!-- Download 得到上一篇位置后截取三篇文章信息 -->
+	<select id="getArticleByDownload" resultMap="articleList">
+		select * from articleinfo order by file_count desc limit #{0},3;
+	</select>
+	
+	
+	<!-- Time 得到上一篇位置后截取三篇文章信息 -->
+	<select id="getArticleByTime" resultMap="articleList">
+		select * from articleinfo order by article_date desc limit #{0},3;
+	</select>
+	
+	<!-- View 得到上一篇位置后截取三篇文章信息 -->
+	<select id="getArticleByView" resultMap="articleList">
+		select * from articleinfo order by article_view_count desc limit #{0},3;
+	</select>
+	<!-- 浏览量前三 -->
+	<select id="getBrief_Article_By_View" resultMap="articleList">
+		select * from articleinfo order by article_view_count desc limit 3;
+	</select>
+	<!-- 时间排序前三 -->
+	<select id="getBrief_Article_By_Time" resultMap="articleList">
+		select * from articleinfo order by article_date desc limit 3;
+	</select>
+	<!-- 获得所有文章 -->
+	<select id="getAllArticle" resultMap="articleList">
+		select * from articleinfo;
+	</select>
+	<!--  -->
+	<select id="getArticleById" resultType="com.wyh.bean.ArticleBean">
+		select * from articleinfo where article_id = #{0};
+	</select>
+	
+</mapper>

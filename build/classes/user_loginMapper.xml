@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org/DTD Mapper 3.0" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wyh.dao.IUserOperation">
+	<resultMap id="userList" type="com.wyh.bean.User">
+		<id column="id" property="id" />
+		<result column="username" property="username" />
+		<result column="password" property="password"/>
+		<result column= "email" property="email"/>
+		<result column= "place" property="place"/>
+		<result column= "birthday" property="birthday"/>
+		<result column= "headimg" property="headimg"/>
+	</resultMap>
+	<insert id="insert" parameterType="com.wyh.bean.User" >
+		insert into user (username,password,email)
+		values(#{username},#{password},#{email})
+	</insert>
+	<update id="update" parameterType="com.wyh.bean.User">
+		update user set username=#{username},email=#{email},place=#{place},sex=#{sex}
+		,birthday=#{birthday} where id=#{id}
+	</update>
+	<update id="update_head_img" parameterType="java.lang.String">
+		update user set headimg=#{0} where username=#{1}
+	</update>
+	<select id="getList" resultMap="userList" parameterType="java.lang.String">
+		select * from user where username=#{0} and password = #{1}
+	</select>
+	<select id="select" resultMap="userList" parameterType="java.lang.String">
+		select * from user where username=#{0} or email = #{1}
+	</select>
+	<select id="getUserBean" resultMap="userList" parameterType="java.lang.String">
+		select * from user where username=#{0}
+	</select>
+</mapper>
